@@ -75,7 +75,9 @@ object FinanceCalculator {
     fun upcomingDeficits(data: FinanceData, today: YearMonth, includeFixed: Boolean, horizon: Int = 12): List<MonthSummary> =
         (0 until horizon).map { monthSummary(data, today + it, includeFixed) }.filter { it.isDeficit }
 
-    fun totalDebt(items: List<ExpenseItem>): Double = items.sumOf { it.currentDebt }
+    /** Deuda total de tarjetas y créditos (los gastos fijos no son deuda). */
+    fun totalDebt(items: List<ExpenseItem>): Double =
+        items.filter { it.type != ExpenseType.FIXED }.sumOf { it.currentDebt }
 
     fun totalAvailableCredit(items: List<ExpenseItem>): Double =
         items.filter { it.isCreditCard && it.creditLimit > 0 }.sumOf { it.availableCredit }

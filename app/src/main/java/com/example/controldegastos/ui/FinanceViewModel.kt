@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.controldegastos.data.AppSettings
 import com.example.controldegastos.data.ExpenseItem
+import com.example.controldegastos.data.ExpenseType
 import com.example.controldegastos.data.FinanceData
 import com.example.controldegastos.data.FinanceRepository
 import com.example.controldegastos.data.IncomeSource
@@ -157,7 +158,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         }
         sb.appendLine()
         sb.appendLine("💳 Deudas")
-        d.items.forEach { item ->
+        d.items.filter { it.type != ExpenseType.FIXED }.forEach { item ->
             val extra = if (item.isCreditCard && item.creditLimit > 0) " (disponible ${item.availableCredit.toClp()})" else ""
             sb.appendLine("   • ${item.icon} ${item.name}: ${item.currentDebt.toClp()}$extra")
         }

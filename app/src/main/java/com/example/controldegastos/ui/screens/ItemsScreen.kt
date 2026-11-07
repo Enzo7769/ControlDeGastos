@@ -192,9 +192,10 @@ private fun ItemCard(item: ExpenseItem, today: YearMonth, onClick: () -> Unit) {
                         )
                     }
                 }
+                val (headLabel, headValue) = item.headline(today)
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("Deuda", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(item.currentDebt.toClp(), style = MaterialTheme.typography.titleMedium)
+                    Text(headLabel, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(headValue.toClp(), style = MaterialTheme.typography.titleMedium)
                 }
             }
             if (item.isCreditCard && item.creditLimit > 0.0) {

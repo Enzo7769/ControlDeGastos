@@ -209,8 +209,9 @@ private fun HeaderCard(item: ExpenseItem) {
                 IconBubble(item.icon, size = 56.dp)
                 Column {
                     Text(item.type.label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("Deuda actual", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(item.currentDebt.toClp(), style = MaterialTheme.typography.headlineMedium)
+                    val (headLabel, headValue) = item.headline(YearMonth.now())
+                    Text(if (headLabel == "Deuda") "Deuda actual" else headLabel, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(headValue.toClp(), style = MaterialTheme.typography.headlineMedium)
                 }
             }
             if (item.isCreditCard && item.creditLimit > 0.0) {

@@ -89,6 +89,14 @@ data class ExpenseItem(
     val currentDebt: Double
         get() = if (isCreditCard && usedQuota > 0.0) usedQuota else pendingInstallments
 
+    /**
+     * Cifra principal para mostrar: los gastos fijos no son deuda, se muestra su pago mensual;
+     * tarjetas y créditos muestran la deuda vigente.
+     */
+    fun headline(today: YearMonth): Pair<String, Double> =
+        if (type == ExpenseType.FIXED) "Pago mensual" to (amountFor(today).takeIf { it > 0 } ?: amounts.values.lastOrNull() ?: 0.0)
+        else "Deuda" to currentDebt
+
     val availableCredit: Double
         get() = (creditLimit - currentDebt).coerceAtLeast(0.0)
 

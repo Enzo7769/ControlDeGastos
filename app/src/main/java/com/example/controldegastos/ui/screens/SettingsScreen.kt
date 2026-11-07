@@ -50,7 +50,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -102,13 +104,12 @@ fun SettingsScreen(viewModel: FinanceViewModel, navigator: Navigator) {
                     leadingContent = { Icon(Icons.Outlined.AccountCircle, null) },
                     headlineContent = { Text(user?.displayName?.takeIf { it.isNotBlank() } ?: "Mi cuenta") },
                     supportingContent = {
-                        Text(
-                            (user?.email ?: "") + " · " + when (sync) {
-                                FinanceRepository.SyncState.SYNCED -> "Sincronizado"
-                                FinanceRepository.SyncState.SYNCING -> "Sincronizando…"
-                                FinanceRepository.SyncState.OFFLINE -> "Sin conexión (se guarda en el teléfono)"
-                            }
-                        )
+                        val status = when (sync) {
+                            FinanceRepository.SyncState.SYNCED -> "Sincronizado"
+                            FinanceRepository.SyncState.SYNCING -> "Sincronizando…"
+                            FinanceRepository.SyncState.OFFLINE -> "Sin conexión (se guarda en el teléfono)"
+                        }
+                        Text(listOfNotNull(user?.email?.takeIf { it.isNotBlank() }, status).joinToString(" · "))
                     },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 )
@@ -272,13 +273,16 @@ private fun SettingsGroup(title: String, content: @Composable () -> Unit) {
 
 @Composable
 private fun AccentSwatch(accent: AccentColor, selected: Boolean, onClick: () -> Unit) {
-    val color = if (accent == AccentColor.DYNAMIC) MaterialTheme.colorScheme.tertiary else Color(accent.seed)
+    // "Del sistema" usa los colores del fondo de pantalla (Android 12+): se representa con un arcoíris.
+    val brush = if (accent == AccentColor.DYNAMIC) {
+        Brush.sweepGradient(listOf(Color(0xFF4285F4), Color(0xFF34A853), Color(0xFFFBBC05), Color(0xFFEA4335), Color(0xFF4285F4)))
+    } else SolidColor(Color(accent.seed))
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             Modifier
                 .size(44.dp)
                 .clip(CircleShape)
-                .background(color)
+                .background(brush)
                 .then(
                     if (selected) Modifier.border(BorderStroke(3.dp, MaterialTheme.colorScheme.onSurface), CircleShape)
                     else Modifier

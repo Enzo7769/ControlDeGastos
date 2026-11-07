@@ -45,6 +45,8 @@ class FinanceCalculatorTest {
 
     @Test fun `deuda usa cupo del banco o cuotas pendientes`() {
         assertEquals(150_000.0, card.currentDebt, 0.0) // nov pagado → queda dic
+        assertEquals(150_000.0, FinanceCalculator.totalDebt(listOf(card, rent)), 0.0) // el arriendo no es deuda
+        assertEquals("Pago mensual" to 400_000.0, rent.headline(nov))
         assertEquals(850_000.0, card.availableCredit, 0.0)
         val withBank = card.copy(usedQuota = 600_000.0)
         assertEquals(600_000.0, withBank.currentDebt, 0.0)
