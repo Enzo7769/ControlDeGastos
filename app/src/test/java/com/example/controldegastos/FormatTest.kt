@@ -21,6 +21,7 @@ class FormatTest {
         assertEquals("$1,3M", 1_250_000.0.toClpCompact())
         assertEquals("$2M", 2_000_000.0.toClpCompact())
         assertEquals("$85K", 85_000.0.toClpCompact())
+        assertEquals("$1M", 999_600.0.toClpCompact())
     }
 
     @Test fun `separador de miles`() {

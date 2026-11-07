@@ -5,6 +5,7 @@ import androidx.core.content.edit
 import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.MetadataChanges
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,6 +21,8 @@ import kotlinx.coroutines.flow.asStateFlow
 class FinanceRepository(
     context: Context,
     val userId: String,
+    /** Importar los datos de la versión anterior guardados en este teléfono (solo para la sesión que venía abierta). */
+    private val importLegacy: Boolean,
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance(),
 ) {
     private val appContext = context.applicationContext
@@ -36,7 +39,7 @@ class FinanceRepository(
 
     fun start() {
         if (registration != null) return
-        registration = docRef.addSnapshotListener { snapshot, error ->
+        registration = docRef.addSnapshotListener(MetadataChanges.INCLUDE) { snapshot, error ->
             if (error != null) {
                 Log.w(TAG, "No se pudo sincronizar con la nube", error)
                 _syncState.value = SyncState.OFFLINE
@@ -92,7 +95,12 @@ class FinanceRepository(
                 "payload" to FinanceCodec.encode(data),
                 "updatedAt" to data.updatedAt,
             )
-        ).addOnFailureListener { Log.w(TAG, "Error al guardar en la nube", it) }
+        )
+            .addOnSuccessListener { _syncState.value = SyncState.SYNCED }
+            .addOnFailureListener {
+                Log.w(TAG, "Error al guardar en la nube", it)
+                _syncState.value = SyncState.OFFLINE
+            }
     }
 
     private fun saveLocal(data: FinanceData) {
@@ -106,21 +114,29 @@ class FinanceRepository(
 
     /**
      * La versión anterior guardaba todo en "ControlDeGastosPrefs" sin separar por usuario.
-     * Se migra una sola vez, al primer usuario que inicie sesión en este dispositivo.
+     * Solo se importan si el usuario ya tenía la sesión abierta al actualizar (son sus datos);
+     * en cualquier caso se borran después, para que nunca pasen a otra cuenta.
      * Se usa updatedAt = 1 para que, si la nube ya tiene datos, prevalezcan los de la nube.
      */
     private fun migrateLegacyLocal(): FinanceData? {
         val legacy = appContext.getSharedPreferences(LEGACY_PREFS, Context.MODE_PRIVATE)
         if (legacy.getBoolean(KEY_LEGACY_MIGRATED, false)) return null
-        val migrated = FinanceCodec.migrateLegacy(
-            cardsJson = legacy.getString("saved_cards", null),
-            incomesJson = legacy.getString("saved_incomes", null),
-            monthsJson = legacy.getString("saved_months", null),
-            fallbackStart = YearMonth.now(),
-            updatedAt = 1L,
-        ) ?: return null
-        legacy.edit { putBoolean(KEY_LEGACY_MIGRATED, true) }
-        saveLocal(migrated)
+        val migrated = if (importLegacy) {
+            FinanceCodec.migrateLegacy(
+                cardsJson = legacy.getString("saved_cards", null),
+                incomesJson = legacy.getString("saved_incomes", null),
+                monthsJson = legacy.getString("saved_months", null),
+                fallbackStart = YearMonth.now(),
+                updatedAt = 1L,
+            )
+        } else null
+        legacy.edit {
+            remove("saved_cards")
+            remove("saved_incomes")
+            remove("saved_months")
+            putBoolean(KEY_LEGACY_MIGRATED, true)
+        }
+        migrated?.let(::saveLocal)
         return migrated
     }
 

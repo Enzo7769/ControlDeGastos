@@ -54,7 +54,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.controldegastos.R
 import com.example.controldegastos.data.AccentColor
@@ -63,6 +62,7 @@ import com.example.controldegastos.data.ThemeMode
 import com.example.controldegastos.ui.FinanceViewModel
 import com.example.controldegastos.ui.LocalAppSnackbar
 import com.example.controldegastos.ui.Navigator
+import com.example.controldegastos.ui.openUpdate
 import com.example.controldegastos.ui.components.ConfirmDialog
 import com.example.controldegastos.ui.theme.supportsDynamicColor
 import com.example.controldegastos.util.BiometricLock
@@ -219,11 +219,7 @@ fun SettingsScreen(viewModel: FinanceViewModel, navigator: Navigator) {
                             if (info == null) {
                                 Toast.makeText(context, "Tienes la última versión", Toast.LENGTH_SHORT).show()
                             } else {
-                                snackbar.show("Versión ${info.versionName} disponible", "Descargar") {
-                                    runCatching {
-                                        context.startActivity(Intent(Intent.ACTION_VIEW, info.apkUrl.toUri()))
-                                    }
-                                }
+                                snackbar.show("Versión ${info.versionName} disponible", "Descargar") { openUpdate(context, info) }
                             }
                         }
                     },

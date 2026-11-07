@@ -85,7 +85,9 @@ fun HomeScreen(viewModel: FinanceViewModel, navigator: Navigator) {
     val summary = remember(data, month, includeFixed) { FinanceCalculator.monthSummary(data, month, includeFixed) }
     val breakdown = remember(data, month, includeFixed) { FinanceCalculator.breakdown(data, month, includeFixed) }
     val deficits = remember(data, today, includeFixed) { FinanceCalculator.upcomingDeficits(data, today, includeFixed) }
-    val payments = remember(data, month) { data.items.filter { it.amountFor(month) > 0.0 } }
+    val payments = remember(data, month, includeFixed) {
+        data.items.filter { it.amountFor(month) > 0.0 && FinanceCalculator.countsFor(it, includeFixed) }
+    }
 
     val name = user?.displayName?.takeIf { it.isNotBlank() }?.substringBefore(' ')
         ?: user?.email?.substringBefore('@')

@@ -99,7 +99,7 @@ fun MoneyField(
 ) {
     OutlinedTextField(
         value = value,
-        onValueChange = { new -> onValueChange(new.filter(Char::isDigit).take(12).trimStart('0')) },
+        onValueChange = { new -> onValueChange(new.filter(Char::isDigit).trimStart('0').take(12)) },
         label = { Text(label) },
         prefix = { Text("$ ") },
         singleLine = true,

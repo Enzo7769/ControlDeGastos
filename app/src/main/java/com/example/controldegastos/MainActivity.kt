@@ -6,6 +6,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.runtime.LaunchedEffect
+import com.example.controldegastos.data.ThemeMode
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -26,14 +29,21 @@ class MainActivity : AppCompatActivity() {
     private var stoppedAt = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        applyNightMode(viewModel.settings.value.themeMode)
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        locked = savedInstanceState?.getBoolean(KEY_LOCKED) ?: shouldLock()
+        // Tras rotar la pantalla se conserva el estado; si el sistema cerró la app en segundo plano
+        // (o pasó más de un minuto) se vuelve a bloquear.
+        val savedAt = savedInstanceState?.getLong(KEY_SAVED_AT) ?: 0L
+        val wasLocked = savedInstanceState?.getBoolean(KEY_LOCKED) ?: true
+        val longAgo = System.currentTimeMillis() - savedAt > RELOCK_AFTER_MS
+        locked = shouldLock() && (wasLocked || longAgo)
 
         setContent {
             val settings by viewModel.settings.collectAsStateWithLifecycle()
             val user by viewModel.user.collectAsStateWithLifecycle()
+            LaunchedEffect(settings.themeMode) { applyNightMode(settings.themeMode) }
 
             ControlDeGastosTheme(themeMode = settings.themeMode, accent = settings.accent) {
                 if (locked && user != null && settings.biometricLock) {
@@ -69,6 +79,17 @@ class MainActivity : AppCompatActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(KEY_LOCKED, locked)
+        outState.putLong(KEY_SAVED_AT, System.currentTimeMillis())
+    }
+
+    /** Hace que recursos, barras del sistema y fondo de ventana sigan el tema elegido en la app. */
+    private fun applyNightMode(mode: ThemeMode) {
+        val target = when (mode) {
+            ThemeMode.SYSTEM -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+            ThemeMode.LIGHT -> AppCompatDelegate.MODE_NIGHT_NO
+            ThemeMode.DARK -> AppCompatDelegate.MODE_NIGHT_YES
+        }
+        if (AppCompatDelegate.getDefaultNightMode() != target) AppCompatDelegate.setDefaultNightMode(target)
     }
 
     private fun shouldLock(): Boolean =
@@ -91,6 +112,7 @@ class MainActivity : AppCompatActivity() {
 
     private companion object {
         const val KEY_LOCKED = "locked"
+        const val KEY_SAVED_AT = "saved_at"
         const val RELOCK_AFTER_MS = 60_000L
     }
 }

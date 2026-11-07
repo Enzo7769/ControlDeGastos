@@ -1,5 +1,6 @@
 package com.example.controldegastos.ui
 
+import android.content.Context
 import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
@@ -39,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -111,12 +113,31 @@ val LocalAppSnackbar = staticCompositionLocalOf<AppSnackbar> { error("AppSnackba
 /** Acciones de navegación disponibles para las pantallas. */
 class Navigator(
     private val stack: MutableList<Route>,
+    private val holder: SaveableStateHolder,
     private val selectTab: (Tab) -> Unit,
 ) {
-    fun open(route: Route) { stack.add(route) }
-    fun back() { if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex) }
+    fun open(route: Route) {
+        holder.removeState(route.key()) // una pantalla nueva siempre empieza limpia
+        stack.add(route)
+    }
+
+    fun back() {
+        if (stack.isNotEmpty()) holder.removeState(stack.removeAt(stack.lastIndex).key())
+    }
+
     fun replace(route: Route) { back(); open(route) }
-    fun goToTab(tab: Tab) { stack.clear(); selectTab(tab) }
+
+    fun goToTab(tab: Tab) {
+        while (stack.isNotEmpty()) back()
+        selectTab(tab)
+    }
+}
+
+/** Abre el enlace de descarga de una actualización. */
+fun openUpdate(context: Context, info: UpdateInfo) {
+    runCatching {
+        context.startActivity(Intent(Intent.ACTION_VIEW, info.apkUrl.toUri()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }.onFailure { Toast.makeText(context, "No se pudo abrir el enlace", Toast.LENGTH_SHORT).show() }
 }
 
 @Composable
@@ -133,8 +154,8 @@ private fun MainShell(viewModel: FinanceViewModel) {
     val stack = rememberSaveable(
         saver = listSaver(save = { list -> list.map { it.key() } }, restore = { keys -> keys.mapNotNull(Route::fromKey).toMutableStateList() }),
     ) { mutableListOf<Route>().toMutableStateList() }
-    val navigator = remember(stack) { Navigator(stack) { tab = it } }
     val holder = rememberSaveableStateHolder()
+    val navigator = remember(stack, holder) { Navigator(stack, holder) { tab = it } }
     val snackbarHost = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val appSnackbar = remember { AppSnackbar(snackbarHost, scope) }
@@ -178,7 +199,7 @@ private fun TabsScaffold(
     tab: Tab,
     onTab: (Tab) -> Unit,
     navigator: Navigator,
-    holder: androidx.compose.runtime.saveable.SaveableStateHolder,
+    holder: SaveableStateHolder,
 ) {
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
@@ -240,9 +261,7 @@ private fun UpdateChecker(viewModel: FinanceViewModel) {
             },
             confirmButton = {
                 Button(onClick = {
-                    runCatching {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, info.apkUrl.toUri()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                    }.onFailure { Toast.makeText(context, "No se pudo abrir el enlace", Toast.LENGTH_SHORT).show() }
+                    openUpdate(context, info)
                     update = null
                 }) { Text("Descargar") }
             },

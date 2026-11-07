@@ -24,9 +24,10 @@ fun Double.toClp(): String {
 fun Double.toClpCompact(): String {
     val a = abs(this)
     val sign = if (this < 0) "-" else ""
+    val thousands = Math.round(a / 1_000)
     return when {
-        a >= 1_000_000 -> sign + "$" + "%.1f".format(chileLocale, a / 1_000_000).removeSuffix(",0") + "M"
-        a >= 1_000 -> sign + "$" + Math.round(a / 1_000) + "K"
+        a >= 1_000_000 || thousands >= 1_000 -> sign + "$" + "%.1f".format(chileLocale, a / 1_000_000).removeSuffix(",0") + "M"
+        a >= 1_000 -> sign + "$" + thousands + "K"
         else -> toClp()
     }
 }

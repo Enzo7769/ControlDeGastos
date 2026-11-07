@@ -45,6 +45,9 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
 
     private val repository = MutableStateFlow<FinanceRepository?>(null)
 
+    /** Usuario con sesión abierta al iniciar (viene de la versión anterior): dueño de los datos antiguos locales. */
+    private val sessionUidAtStart: String? = auth.currentUser?.uid
+
     val data: StateFlow<FinanceData> = repository
         .flatMapLatest { it?.data ?: flowOf(FinanceData()) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, FinanceData())
@@ -77,7 +80,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         }
         if (current != null && current.userId == user.uid) return
         current?.stop()
-        repository.value = FinanceRepository(getApplication(), user.uid).also { it.start() }
+        repository.value = FinanceRepository(getApplication(), user.uid, importLegacy = user.uid == sessionUidAtStart).also { it.start() }
     }
 
 
@@ -90,25 +93,16 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
     fun item(id: String): ExpenseItem? = data.value.items.firstOrNull { it.id == id }
 
     /** Crea o actualiza un ítem (si ya existe uno con el mismo id lo reemplaza). */
-    fun saveItem(item: ExpenseItem) = edit { d ->
-        val exists = d.items.any { it.id == item.id }
-        d.copy(items = if (exists) d.items.map { if (it.id == item.id) item else it } else d.items + item)
-    }
+    fun saveItem(item: ExpenseItem) = edit { d -> d.copy(items = d.items.upsert(item) { it.id }) }
 
     /** Elimina y devuelve el ítem junto a su posición, para poder deshacer. */
     fun deleteItem(id: String): Pair<Int, ExpenseItem>? {
-        val idx = data.value.items.indexOfFirst { it.id == id }
-        if (idx < 0) return null
-        val removed = data.value.items[idx]
+        val removed = data.value.items.findWithIndex { it.id == id } ?: return null
         edit { d -> d.copy(items = d.items.filterNot { it.id == id }) }
-        return idx to removed
+        return removed
     }
 
-    fun restoreItem(position: Int, item: ExpenseItem) = edit { d ->
-        val list = d.items.toMutableList()
-        list.add(position.coerceIn(0, list.size), item)
-        d.copy(items = list)
-    }
+    fun restoreItem(position: Int, item: ExpenseItem) = edit { d -> d.copy(items = d.items.insertAt(position, item)) }
 
     private fun editItem(id: String, transform: (ExpenseItem) -> ExpenseItem) = edit { d ->
         d.copy(items = d.items.map { if (it.id == id) transform(it) else it })
@@ -125,24 +119,15 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
 
     // ---------- Ingresos ----------
 
-    fun saveIncome(income: IncomeSource) = edit { d ->
-        val exists = d.incomes.any { it.id == income.id }
-        d.copy(incomes = if (exists) d.incomes.map { if (it.id == income.id) income else it } else d.incomes + income)
-    }
+    fun saveIncome(income: IncomeSource) = edit { d -> d.copy(incomes = d.incomes.upsert(income) { it.id }) }
 
     fun deleteIncome(id: String): Pair<Int, IncomeSource>? {
-        val idx = data.value.incomes.indexOfFirst { it.id == id }
-        if (idx < 0) return null
-        val removed = data.value.incomes[idx]
+        val removed = data.value.incomes.findWithIndex { it.id == id } ?: return null
         edit { d -> d.copy(incomes = d.incomes.filterNot { it.id == id }) }
-        return idx to removed
+        return removed
     }
 
-    fun restoreIncome(position: Int, income: IncomeSource) = edit { d ->
-        val list = d.incomes.toMutableList()
-        list.add(position.coerceIn(0, list.size), income)
-        d.copy(incomes = list)
-    }
+    fun restoreIncome(position: Int, income: IncomeSource) = edit { d -> d.copy(incomes = d.incomes.insertAt(position, income)) }
 
     // ---------- Ajustes ----------
 
@@ -191,17 +176,13 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    val versionName: String
-        get() = runCatching {
-            val app = getApplication<Application>()
-            app.packageManager.getPackageInfo(app.packageName, 0).versionName
-        }.getOrNull() ?: "-"
+    private val packageInfo = runCatching {
+        application.packageManager.getPackageInfo(application.packageName, 0)
+    }.getOrNull()
 
-    private val versionCode: Long
-        get() = runCatching {
-            val app = getApplication<Application>()
-            PackageInfoCompat.getLongVersionCode(app.packageManager.getPackageInfo(app.packageName, 0))
-        }.getOrDefault(1L)
+    val versionName: String = packageInfo?.versionName ?: "-"
+
+    private val versionCode: Long = packageInfo?.let(PackageInfoCompat::getLongVersionCode) ?: 1L
 
     /** Consulta si hay una versión nueva. [onResult] recibe null si la app está al día. */
     fun checkForUpdates(onResult: (UpdateInfo?) -> Unit) {
@@ -230,3 +211,13 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         super.onCleared()
     }
 }
+
+/** Reemplaza el elemento con el mismo id o lo agrega al final. */
+private inline fun <T> List<T>.upsert(element: T, id: (T) -> String): List<T> =
+    if (any { id(it) == id(element) }) map { if (id(it) == id(element)) element else it } else this + element
+
+private inline fun <T> List<T>.findWithIndex(predicate: (T) -> Boolean): Pair<Int, T>? =
+    indexOfFirst(predicate).takeIf { it >= 0 }?.let { it to this[it] }
+
+private fun <T> List<T>.insertAt(position: Int, element: T): List<T> =
+    toMutableList().apply { add(position.coerceIn(0, size), element) }

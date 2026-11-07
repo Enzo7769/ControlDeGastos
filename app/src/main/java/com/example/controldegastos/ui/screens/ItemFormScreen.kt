@@ -89,7 +89,9 @@ fun ItemFormScreen(viewModel: FinanceViewModel, itemId: String?, navigator: Navi
             return
         }
         val isCard = type == ExpenseType.CREDIT_CARD
-        var item = (existing ?: ExpenseItem(name = name.trim())).copy(
+        // Se parte de la versión más reciente para no pisar cuotas o pagos sincronizados mientras se editaba.
+        val base = itemId?.let(viewModel::item) ?: existing
+        var item = (base ?: ExpenseItem(name = name.trim())).copy(
             name = name.trim(),
             icon = icon,
             type = type,
