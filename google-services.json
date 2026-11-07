@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "643040154565",
+    "project_id": "controldecostos-babea",
+    "storage_bucket": "controldecostos-babea.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:643040154565:android:52dfe09584b3c86530f1ac",
+        "android_client_info": {
+          "package_name": "com.example.controldegastos"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBrpVJLWV9YtscEvUIDFaVxNAGdMKRIGCA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
