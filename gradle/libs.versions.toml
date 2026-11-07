@@ -13,7 +13,8 @@ firebaseConfig = "22.0.0"
 firebaseFirestore = "25.1.2"
 firebaseAuth = "23.1.0"
 googleGmsGoogleServices = "4.4.4"
-coil = "2.6.0"
+materialIcons = "1.7.8"
+orgJson = "20240303"
 biometric = "1.2.0-alpha05"
 appcompat = "1.7.0"
 playServicesAuth = "21.3.0"
@@ -39,8 +40,9 @@ firebase-config = { group = "com.google.firebase", name = "firebase-config-ktx",
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore-ktx", version.ref = "firebaseFirestore" }
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth-ktx", version.ref = "firebaseAuth" }
 play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
-coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
-coil-gif = { group = "io.coil-kt", name = "coil-gif", version.ref = "coil" }
+androidx-compose-material-icons-core = { group = "androidx.compose.material", name = "material-icons-core", version.ref = "materialIcons" }
+androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycleRuntimeKtx" }
+org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
 androidx-biometric = { group = "androidx.biometric", name = "biometric-ktx", version.ref = "biometric" }
 
 [plugins]
