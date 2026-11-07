@@ -4,6 +4,16 @@ App Android (Jetpack Compose + Material 3) para controlar tarjetas de crédito, 
 gastos fijos e ingresos, y saber cuánto te queda cada mes. Los datos se guardan en el teléfono y se
 sincronizan con tu cuenta en Firebase.
 
+## Capturas
+
+| Inicio | Deudas | Detalle | Proyección |
+|---|---|---|---|
+| ![Inicio](docs/capturas/01_inicio.png) | ![Deudas](docs/capturas/03_deudas.png) | ![Detalle](docs/capturas/04_detalle_tarjeta.png) | ![Proyección](docs/capturas/07_proyeccion.png) |
+
+| Modo oscuro | Ingresos | Ajustes | Inicio de sesión |
+|---|---|---|---|
+| ![Oscuro](docs/capturas/02_inicio_oscuro.png) | ![Ingresos](docs/capturas/06_ingresos.png) | ![Ajustes](docs/capturas/08_ajustes.png) | ![Login](docs/capturas/09_login.png) |
+
 ## Funciones
 
 - **Inicio**: saldo del mes (ingresos − gastos), pagado / pendiente, alerta de meses con déficit,
