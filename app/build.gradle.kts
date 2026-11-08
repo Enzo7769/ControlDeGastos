@@ -1,8 +1,21 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.gms.google.services)
 }
+
+/**
+ * Firma de release. Se lee de `keystore.properties` en la raíz (uso local, NO se sube a git)
+ * o de variables de entorno (GitHub Actions). Si no hay ninguna, el release queda sin firmar.
+ */
+val signingProps = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) file.inputStream().use(::load)
+}
+fun signingValue(key: String, env: String): String? =
+    signingProps.getProperty(key) ?: System.getenv(env)?.takeIf { it.isNotBlank() }
 
 android {
     namespace = "com.example.controldegastos"
@@ -12,17 +25,31 @@ android {
         applicationId = "com.example.controldegastos"
         minSdk = 24
         targetSdk = 35
-        versionCode = 2
-        versionName = "2.0.0"
+        versionCode = 3
+        versionName = "2.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        val storePath = signingValue("storeFile", "SIGNING_STORE_FILE")
+        if (storePath != null) {
+            create("release") {
+                storeFile = file(storePath)
+                storePassword = signingValue("storePassword", "SIGNING_STORE_PASSWORD")
+                keyAlias = signingValue("keyAlias", "SIGNING_KEY_ALIAS")
+                keyPassword = signingValue("keyPassword", "SIGNING_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            // R8: reduce y optimiza el código (APK mucho más liviano).
             optimization {
-                enable = false
+                enable = true
             }
+            signingConfig = signingConfigs.findByName("release")
         }
     }
     compileOptions {

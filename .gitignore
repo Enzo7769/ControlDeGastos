@@ -16,3 +16,8 @@ local.properties
 .kotlin/
 hs_err_pid*.log
 replay_pid*.log
+
+# Firma de release (nunca subir)
+keystore.properties
+*.jks
+*.keystore
