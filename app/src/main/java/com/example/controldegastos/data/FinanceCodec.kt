@@ -37,6 +37,7 @@ object FinanceCodec {
             item.amounts.toSortedMap().forEach { (ym, v) -> put(ym.key(), v) }
         })
         put("paid", JSONArray().apply { item.paidMonths.sorted().forEach { put(it.key()) } })
+        item.dueDay?.let { put("dueDay", it) }
     }
 
     /** Devuelve null si el texto no es un documento v2 válido. */
@@ -77,6 +78,7 @@ object FinanceCodec {
             usedQuota = obj.optDouble("usedQuota", 0.0),
             amounts = amounts.filterValues { it > 0.0 },
             paidMonths = paid,
+            dueDay = if (obj.has("dueDay")) obj.optInt("dueDay").takeIf { it in 1..31 } else null,
         )
     }
 

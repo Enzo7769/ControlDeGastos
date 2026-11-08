@@ -1,5 +1,11 @@
 package com.example.controldegastos.ui.screens
 
+import com.example.controldegastos.reminders.PaymentReminders
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
+import android.os.Build
+import android.Manifest
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
@@ -79,6 +85,9 @@ fun SettingsScreen(viewModel: FinanceViewModel, navigator: Navigator) {
     val sync by viewModel.syncState.collectAsStateWithLifecycle()
     var confirmSignOut by remember { mutableStateOf(false) }
     var checkingUpdate by remember { mutableStateOf(false) }
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (!granted) snackbar.show("Sin permiso de notificaciones no podremos avisarte")
+    }
 
     Scaffold(
         topBar = {
@@ -136,6 +145,31 @@ fun SettingsScreen(viewModel: FinanceViewModel, navigator: Navigator) {
                             onCheckedChange = { toggleLock(it, context, viewModel) { msg -> snackbar.show(msg) } },
                         )
                     },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                )
+            }
+
+            // ----- Recordatorios -----
+            SettingsGroup("Recordatorios") {
+                fun setReminders(enable: Boolean) {
+                    viewModel.updateSettings { it.copy(paymentReminders = enable) }
+                    PaymentReminders.sync(context, enable)
+                    if (enable && !PaymentReminders.hasPermission(context) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    }
+                }
+                ListItem(
+                    modifier = Modifier.clickable { setReminders(!settings.paymentReminders) },
+                    leadingContent = { Icon(Icons.Outlined.Notifications, null) },
+                    headlineContent = { Text("Recordatorios de pago") },
+                    supportingContent = {
+                        Text(
+                            if (settings.paymentReminders && !PaymentReminders.hasPermission(context))
+                                "Activa las notificaciones de la app para recibirlos"
+                            else "Aviso a las 9:00, un día antes y el día del vencimiento"
+                        )
+                    },
+                    trailingContent = { Switch(checked = settings.paymentReminders, onCheckedChange = ::setReminders) },
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent),
                 )
             }

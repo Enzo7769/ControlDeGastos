@@ -50,6 +50,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.controldegastos.data.YearMonth
+import com.example.controldegastos.domain.DuePayment
+import com.example.controldegastos.util.monthName
 import com.example.controldegastos.ui.theme.FinanceTheme
 import com.example.controldegastos.util.groupDigits
 import com.example.controldegastos.util.longLabel
@@ -333,4 +335,16 @@ fun DonutChart(
 @Composable
 fun LegendDot(color: Color, modifier: Modifier = Modifier) {
     Box(modifier.size(10.dp).clip(CircleShape).background(color))
+}
+
+/** "Vence hoy", "Vence mañana", "Vence en 5 días (15 de noviembre)", "Venció hace 2 días". */
+fun dueText(p: DuePayment): String {
+    val date = "${p.date.day} de ${p.date.yearMonth.monthName().lowercase()}"
+    return when {
+        p.daysLeft < -1 -> "Venció hace ${-p.daysLeft} días ($date)"
+        p.daysLeft == -1 -> "Venció ayer"
+        p.daysLeft == 0 -> "Vence hoy"
+        p.daysLeft == 1 -> "Vence mañana"
+        else -> "Vence en ${p.daysLeft} días ($date)"
+    }
 }

@@ -1,5 +1,6 @@
 package com.example.controldegastos.domain
 
+import com.example.controldegastos.data.CalendarDate
 import com.example.controldegastos.data.ExpenseItem
 import com.example.controldegastos.data.ExpenseType
 import com.example.controldegastos.data.FinanceData
@@ -20,6 +21,11 @@ data class MonthSummary(
     val isDeficit: Boolean get() = balance < 0
     /** Proporción de los ingresos comprometida en gastos (puede superar 1). */
     val spendRatio: Float get() = if (income > 0) (expenses / income).toFloat() else if (expenses > 0) 1f else 0f
+}
+
+/** Un pago con fecha de vencimiento que aún no se marca como pagado. */
+data class DuePayment(val item: ExpenseItem, val date: CalendarDate, val amount: Double, val daysLeft: Int) {
+    val isOverdue: Boolean get() = daysLeft < 0
 }
 
 data class ItemShare(val item: ExpenseItem, val amount: Double, val fraction: Float)
@@ -81,6 +87,28 @@ object FinanceCalculator {
 
     fun totalAvailableCredit(items: List<ExpenseItem>): Double =
         items.filter { it.isCreditCard && it.creditLimit > 0 }.sumOf { it.availableCredit }
+
+    /**
+     * Pagos no pagados que vencen entre hace [overdueDays] días y dentro de [withinDays] días,
+     * ordenados por fecha. Revisa el mes anterior, el actual y el siguiente.
+     */
+    fun duePayments(
+        data: FinanceData,
+        today: CalendarDate,
+        withinDays: Int,
+        overdueDays: Int = 0,
+    ): List<DuePayment> {
+        val months = listOf(today.yearMonth - 1, today.yearMonth, today.yearMonth + 1)
+        return data.items.flatMap { item ->
+            months.mapNotNull { m ->
+                val amount = item.amountFor(m)
+                val date = item.dueDate(m) ?: return@mapNotNull null
+                if (amount <= 0.0 || item.isPaid(m)) return@mapNotNull null
+                val days = today.daysUntil(date)
+                if (days in -overdueDays..withinDays) DuePayment(item, date, amount, days) else null
+            }
+        }.sortedBy { it.date }
+    }
 
     /** Agrega [count] cuotas de [amount] desde [start], sumándolas a lo que ya exista en cada mes. */
     fun addInstallments(item: ExpenseItem, amount: Double, count: Int, start: YearMonth): ExpenseItem {

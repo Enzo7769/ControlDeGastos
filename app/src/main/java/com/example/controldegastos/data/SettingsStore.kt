@@ -23,6 +23,8 @@ data class AppSettings(
     val accent: AccentColor = AccentColor.BLUE,
     val biometricLock: Boolean = false,
     val includeFixedExpenses: Boolean = true,
+    /** Avisar un día antes y el día del vencimiento de cada pago. */
+    val paymentReminders: Boolean = true,
 )
 
 /** Preferencias del dispositivo (no dependen del usuario). */
@@ -40,6 +42,7 @@ class SettingsStore(context: Context) {
             putString("accent", next.accent.name)
             putBoolean("biometric_lock", next.biometricLock)
             putBoolean("include_fixed", next.includeFixedExpenses)
+            putBoolean("payment_reminders", next.paymentReminders)
         }
     }
 
@@ -50,6 +53,7 @@ class SettingsStore(context: Context) {
                 accent = AccentColor.entries.firstOrNull { it.name == prefs.getString("accent", null) } ?: AccentColor.BLUE,
                 biometricLock = prefs.getBoolean("biometric_lock", false),
                 includeFixedExpenses = prefs.getBoolean("include_fixed", true),
+                paymentReminders = prefs.getBoolean("payment_reminders", true),
             )
         }
         // Migrar preferencias de la versión anterior.

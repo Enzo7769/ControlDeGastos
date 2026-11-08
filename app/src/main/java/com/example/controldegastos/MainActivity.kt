@@ -1,5 +1,6 @@
 package com.example.controldegastos
 
+import android.content.Intent
 import android.os.Bundle
 import android.os.SystemClock
 import androidx.activity.compose.setContent
@@ -13,6 +14,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.controldegastos.reminders.PaymentReminders
 import com.example.controldegastos.ui.AppRoot
 import com.example.controldegastos.ui.FinanceViewModel
 import com.example.controldegastos.ui.screens.LockScreen
@@ -39,6 +41,8 @@ class MainActivity : AppCompatActivity() {
         val wasLocked = savedInstanceState?.getBoolean(KEY_LOCKED) ?: true
         val longAgo = System.currentTimeMillis() - savedAt > RELOCK_AFTER_MS
         locked = shouldLock() && (wasLocked || longAgo)
+        if (savedInstanceState == null) handleIntent(intent)
+        PaymentReminders.sync(this, viewModel.settings.value.paymentReminders)
 
         setContent {
             val settings by viewModel.settings.collectAsStateWithLifecycle()
@@ -60,6 +64,16 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleIntent(intent)
+    }
+
+    /** Al tocar un recordatorio se abre directamente el detalle de ese pago. */
+    private fun handleIntent(intent: Intent?) {
+        intent?.getStringExtra(PaymentReminders.EXTRA_OPEN_ITEM)?.let { viewModel.pendingOpenItem.value = it }
     }
 
     override fun onStart() {

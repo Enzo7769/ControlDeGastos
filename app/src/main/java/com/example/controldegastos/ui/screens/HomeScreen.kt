@@ -1,5 +1,9 @@
 package com.example.controldegastos.ui.screens
 
+import androidx.compose.material.icons.filled.DateRange
+import com.example.controldegastos.ui.components.dueText
+import com.example.controldegastos.domain.DuePayment
+import com.example.controldegastos.data.CalendarDate
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -84,6 +88,7 @@ fun HomeScreen(viewModel: FinanceViewModel, navigator: Navigator) {
 
     val summary = remember(data, month, includeFixed) { FinanceCalculator.monthSummary(data, month, includeFixed) }
     val breakdown = remember(data, month, includeFixed) { FinanceCalculator.breakdown(data, month, includeFixed) }
+    val dues = remember(data) { FinanceCalculator.duePayments(data, CalendarDate.today(), withinDays = 7, overdueDays = 10) }
     val deficits = remember(data, today, includeFixed) { FinanceCalculator.upcomingDeficits(data, today, includeFixed) }
     val payments = remember(data, month, includeFixed) {
         data.items.filter { it.amountFor(month) > 0.0 && FinanceCalculator.countsFor(it, includeFixed) }
@@ -157,6 +162,9 @@ fun HomeScreen(viewModel: FinanceViewModel, navigator: Navigator) {
                         { Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
                     } else null,
                 )
+            }
+            if (dues.isNotEmpty()) {
+                item { DuesCard(dues, onOpen = { navigator.open(Route.ItemDetail(it)) }) }
             }
             if (deficits.isNotEmpty()) {
                 item { DeficitCard(deficits, onClick = { navigator.goToTab(Tab.PROJECTION) }) }
@@ -253,6 +261,44 @@ private fun HeroCard(summary: MonthSummary, month: YearMonth, today: YearMonth, 
                 style = MaterialTheme.typography.bodySmall,
                 color = onContainer.copy(alpha = 0.85f),
             )
+        }
+    }
+}
+
+@Composable
+private fun DuesCard(dues: List<DuePayment>, onOpen: (String) -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+    ) {
+        Column(Modifier.padding(vertical = 8.dp)) {
+            Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.DateRange, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(8.dp))
+                Text("Próximos vencimientos", style = MaterialTheme.typography.titleSmall)
+            }
+            dues.take(5).forEach { due ->
+                Row(
+                    Modifier.fillMaxWidth().clickable { onOpen(due.item.id) }.padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconBubble(due.item.icon, size = 36.dp)
+                    Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(due.item.name, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            dueText(due),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = when {
+                                due.isOverdue -> FinanceTheme.colors.negative
+                                due.daysLeft <= 1 -> FinanceTheme.colors.warning
+                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                    }
+                    Text(due.amount.toClp(), style = MaterialTheme.typography.titleSmall)
+                }
+            }
         }
     }
 }

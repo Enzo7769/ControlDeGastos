@@ -59,6 +59,9 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
 
     val settings: StateFlow<AppSettings> = settingsStore.settings
 
+    /** Ítem a abrir al tocar una notificación de vencimiento. */
+    val pendingOpenItem = MutableStateFlow<String?>(null)
+
     /** Mes calendario actual. */
     val today: YearMonth get() = YearMonth.now()
 

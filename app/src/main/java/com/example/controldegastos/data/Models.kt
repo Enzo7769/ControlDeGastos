@@ -21,6 +21,13 @@ data class YearMonth(val year: Int, val month: Int) : Comparable<YearMonth> {
     /** Meses que van desde [other] hasta este mes (positivo si este es posterior). */
     fun monthsFrom(other: YearMonth): Int = ordinal - other.ordinal
 
+    val lengthOfMonth: Int
+        get() = when (month) {
+            2 -> if ((year % 4 == 0 && year % 100 != 0) || year % 400 == 0) 29 else 28
+            4, 6, 9, 11 -> 30
+            else -> 31
+        }
+
     /** Clave estable para guardar en JSON: "2026-11". */
     fun key(): String = "%04d-%02d".format(year, month)
 
@@ -42,6 +49,33 @@ data class YearMonth(val year: Int, val month: Int) : Comparable<YearMonth> {
 
         fun now(calendar: Calendar = Calendar.getInstance()): YearMonth =
             YearMonth(calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH) + 1)
+    }
+}
+
+/** Fecha simple (sin hora), compatible con todas las versiones de Android. */
+data class CalendarDate(val year: Int, val month: Int, val day: Int) : Comparable<CalendarDate> {
+    val yearMonth: YearMonth get() = YearMonth(year, month)
+
+    /** Días desde 1970-01-01 (algoritmo civil de Howard Hinnant). */
+    val epochDay: Long
+        get() {
+            val y = if (month <= 2) year - 1 else year
+            val era = Math.floorDiv(y, 400)
+            val yoe = y - era * 400
+            val mp = (month + 9) % 12
+            val doy = (153 * mp + 2) / 5 + day - 1
+            val doe = yoe * 365 + yoe / 4 - yoe / 100 + doy
+            return era.toLong() * 146097 + doe - 719468
+        }
+
+    fun daysUntil(other: CalendarDate): Int = (other.epochDay - epochDay).toInt()
+
+    override fun compareTo(other: CalendarDate): Int = epochDay.compareTo(other.epochDay)
+
+    companion object {
+        fun today(calendar: Calendar = Calendar.getInstance()): CalendarDate = CalendarDate(
+            calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH) + 1, calendar.get(Calendar.DAY_OF_MONTH),
+        )
     }
 }
 
@@ -71,7 +105,13 @@ data class ExpenseItem(
     val amounts: Map<YearMonth, Double> = emptyMap(),
     /** Meses marcados como pagados. */
     val paidMonths: Set<YearMonth> = emptySet(),
+    /** Día del mes en que vence el pago (1–31), o null si no se definió. */
+    val dueDay: Int? = null,
 ) {
+    /** Fecha de vencimiento en [month] (si el mes es más corto, el último día del mes). */
+    fun dueDate(month: YearMonth): CalendarDate? =
+        dueDay?.let { CalendarDate(month.year, month.month, it.coerceIn(1, month.lengthOfMonth)) }
+
     val isCreditCard: Boolean get() = type == ExpenseType.CREDIT_CARD
 
     fun amountFor(month: YearMonth): Double = amounts[month] ?: 0.0

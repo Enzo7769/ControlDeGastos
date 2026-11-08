@@ -1,5 +1,8 @@
 package com.example.controldegastos.ui.screens
 
+import com.example.controldegastos.ui.components.dueText
+import com.example.controldegastos.data.FinanceData
+import com.example.controldegastos.data.CalendarDate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -221,6 +224,20 @@ private fun HeaderCard(item: ExpenseItem) {
                     LabeledValue("Disponible", item.availableCredit.toClp(), Modifier.weight(1f), alignEnd = true)
                 }
                 UsageBar(item.usageRatio)
+            }
+            item.dueDay?.let { day ->
+                val today = CalendarDate.today()
+                val next = FinanceCalculator.duePayments(
+                    FinanceData(items = listOf(item)), today, withinDays = 45, overdueDays = 31,
+                ).firstOrNull()
+                Text(
+                    buildString {
+                        append("Vence el día $day de cada mes")
+                        next?.let { append(" · ").append(dueText(it)) }
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (next?.isOverdue == true) FinanceTheme.colors.negative else MaterialTheme.colorScheme.primary,
+                )
             }
             if (item.isCreditCard && item.usedQuota > 0.0) {
                 Text(

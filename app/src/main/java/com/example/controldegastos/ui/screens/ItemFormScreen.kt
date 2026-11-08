@@ -1,5 +1,13 @@
 package com.example.controldegastos.ui.screens
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.controldegastos.reminders.PaymentReminders
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -73,6 +81,11 @@ fun ItemFormScreen(viewModel: FinanceViewModel, itemId: String?, navigator: Navi
     var icon by rememberSaveable(itemId) { mutableStateOf(existing?.icon ?: CategoryIcons.first().first) }
     var limitText by rememberSaveable(itemId) { mutableStateOf(existing?.creditLimit?.toDigits().orEmpty()) }
     var usedText by rememberSaveable(itemId) { mutableStateOf(existing?.usedQuota?.toDigits().orEmpty()) }
+    var dueDayText by rememberSaveable(itemId) { mutableStateOf(existing?.dueDay?.toString().orEmpty()) }
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    // Pide permiso de notificaciones (Android 13+) la primera vez que se define un día de pago.
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
     var firstAmountText by rememberSaveable(itemId) { mutableStateOf("") }
     var months by rememberSaveable(itemId) { mutableIntStateOf(defaultMonths(type)) }
     var monthsTouched by rememberSaveable(itemId) { mutableStateOf(false) }
@@ -82,9 +95,11 @@ fun ItemFormScreen(viewModel: FinanceViewModel, itemId: String?, navigator: Navi
     val used = usedText.digitsToAmount()
     val nameError = name.isBlank()
     val quotaError = type == ExpenseType.CREDIT_CARD && limit > 0.0 && used > limit
+    val dueDay = dueDayText.toIntOrNull()
+    val dueDayError = dueDayText.isNotEmpty() && (dueDay == null || dueDay !in 1..31)
 
     fun save() {
-        if (nameError || quotaError) {
+        if (nameError || quotaError || dueDayError) {
             showErrors = true
             return
         }
@@ -97,11 +112,17 @@ fun ItemFormScreen(viewModel: FinanceViewModel, itemId: String?, navigator: Navi
             type = type,
             creditLimit = if (isCard) limit else 0.0,
             usedQuota = if (isCard) used else 0.0,
+            dueDay = dueDay,
         )
         if (!isEditing) {
             item = FinanceCalculator.addInstallments(item, firstAmountText.digitsToAmount(), months, today)
         }
         viewModel.saveItem(item)
+        if (dueDay != null && settings.paymentReminders && !PaymentReminders.hasPermission(context) &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+        ) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
         if (isEditing) navigator.back() else navigator.replace(Route.ItemDetail(item.id))
         snackbar.show("Guardado")
     }
@@ -202,6 +223,24 @@ fun ItemFormScreen(viewModel: FinanceViewModel, itemId: String?, navigator: Navi
                     else "Opcional. Si lo dejas vacío, la deuda se calcula con las cuotas pendientes.",
                 )
             }
+
+            SectionHeader("Vencimiento")
+            OutlinedTextField(
+                value = dueDayText,
+                onValueChange = { v -> dueDayText = v.filter(Char::isDigit).take(2) },
+                label = { Text("Día de pago (opcional)") },
+                placeholder = { Text("Ej: 15") },
+                singleLine = true,
+                isError = showErrors && dueDayError,
+                supportingText = {
+                    Text(
+                        if (showErrors && dueDayError) "Ingresa un día entre 1 y 31"
+                        else "Te avisaremos un día antes y el mismo día del vencimiento."
+                    )
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             if (!isEditing) {
                 SectionHeader("Primer pago (opcional)")

@@ -160,6 +160,14 @@ private fun MainShell(viewModel: FinanceViewModel) {
     val scope = rememberCoroutineScope()
     val appSnackbar = remember { AppSnackbar(snackbarHost, scope) }
 
+    val pendingItem by viewModel.pendingOpenItem.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingItem) {
+        pendingItem?.let { id ->
+            if (viewModel.item(id) != null) navigator.open(Route.ItemDetail(id))
+            viewModel.pendingOpenItem.value = null
+        }
+    }
+
     BackHandler(enabled = stack.isNotEmpty() || tab != Tab.HOME) {
         if (stack.isNotEmpty()) navigator.back() else tab = Tab.HOME
     }

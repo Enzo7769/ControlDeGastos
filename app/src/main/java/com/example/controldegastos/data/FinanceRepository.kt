@@ -143,6 +143,11 @@ class FinanceRepository(
     enum class SyncState { SYNCING, SYNCED, OFFLINE }
 
     companion object {
+        /** Lee los datos guardados en el teléfono sin conectarse a la nube (para tareas en segundo plano). */
+        fun readLocal(context: Context, userId: String): FinanceData? = FinanceCodec.decode(
+            context.applicationContext.getSharedPreferences("finance_$userId", Context.MODE_PRIVATE).getString(KEY_DATA, null)
+        )
+
         private const val TAG = "FinanceRepository"
         private const val KEY_DATA = "finance_data_v2"
         const val LEGACY_PREFS = "ControlDeGastosPrefs"
