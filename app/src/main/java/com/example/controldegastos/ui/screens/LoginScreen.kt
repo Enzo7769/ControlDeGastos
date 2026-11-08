@@ -2,8 +2,6 @@ package com.example.controldegastos.ui.screens
 
 import android.annotation.SuppressLint
 import android.content.Context
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,6 +38,17 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.credentials.CredentialManager
+import androidx.credentials.CustomCredential
+import androidx.credentials.GetCredentialRequest
+import androidx.credentials.exceptions.GetCredentialCancellationException
+import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
+import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -56,9 +65,6 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.controldegastos.R
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.android.gms.common.api.ApiException
 import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.FirebaseTooManyRequestsException
 import com.google.firebase.auth.FirebaseAuth
@@ -73,6 +79,9 @@ fun LoginScreen() {
     val context = LocalContext.current
     val focus = LocalFocusManager.current
     val auth = remember { FirebaseAuth.getInstance() }
+    val scope = rememberCoroutineScope()
+    // El botón de Google solo aparece cuando el proyecto de Firebase lo tiene configurado.
+    val googleAvailable = remember { webClientId(context).isNotBlank() }
 
     var mode by rememberSaveable { mutableStateOf(AuthMode.LOGIN) }
     var email by rememberSaveable { mutableStateOf("") }
@@ -81,23 +90,6 @@ fun LoginScreen() {
     var loading by rememberSaveable { mutableStateOf(false) }
     var error by rememberSaveable { mutableStateOf<String?>(null) }
     var info by rememberSaveable { mutableStateOf<String?>(null) }
-
-    val googleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        try {
-            val account = GoogleSignIn.getSignedInAccountFromIntent(result.data).getResult(ApiException::class.java)
-            val token = account?.idToken
-            if (token == null) {
-                loading = false
-                return@rememberLauncherForActivityResult
-            }
-            auth.signInWithCredential(GoogleAuthProvider.getCredential(token, null))
-                .addOnFailureListener { loading = false; error = authErrorMessage(it) }
-        } catch (e: ApiException) {
-            loading = false
-            // 12501 = el usuario canceló la selección de cuenta.
-            if (e.statusCode != 12501) error = "No se pudo iniciar sesión con Google (código ${e.statusCode})."
-        }
-    }
 
     fun submit() {
         focus.clearFocus()
@@ -130,17 +122,42 @@ fun LoginScreen() {
 
     fun googleSignIn() {
         error = null
+        info = null
         val clientId = webClientId(context)
         if (clientId.isBlank()) {
-            error = "Google no está configurado en este proyecto (google-services.json)."
+            error = "El inicio con Google aún no está configurado en Firebase. Usa tu correo por ahora."
             return
         }
-        val client = GoogleSignIn.getClient(
-            context,
-            GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).requestIdToken(clientId).requestEmail().build(),
-        )
         loading = true
-        client.signOut().addOnCompleteListener { googleLauncher.launch(client.signInIntent) }
+        scope.launch {
+            try {
+                val option = GetGoogleIdOption.Builder()
+                    .setServerClientId(clientId)
+                    .setFilterByAuthorizedAccounts(false)
+                    .build()
+                val request = GetCredentialRequest.Builder().addCredentialOption(option).build()
+                val credential = CredentialManager.create(context).getCredential(context, request).credential
+                if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                    val idToken = GoogleIdTokenCredential.createFrom(credential.data).idToken
+                    auth.signInWithCredential(GoogleAuthProvider.getCredential(idToken, null))
+                        .addOnFailureListener { loading = false; error = authErrorMessage(it) }
+                } else {
+                    loading = false
+                    error = "No se recibió una cuenta de Google válida."
+                }
+            } catch (_: GetCredentialCancellationException) {
+                loading = false // el usuario cerró el selector de cuentas
+            } catch (_: NoCredentialException) {
+                loading = false
+                error = "No hay cuentas de Google en este teléfono. Agrega una en Ajustes del teléfono."
+            } catch (e: GetCredentialException) {
+                loading = false
+                error = "No se pudo iniciar sesión con Google (${e.type.substringAfterLast('.')})."
+            } catch (e: GoogleIdTokenParsingException) {
+                loading = false
+                error = "No se pudo leer la cuenta de Google."
+            }
+        }
     }
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
@@ -252,7 +269,7 @@ fun LoginScreen() {
                     }
                 }
 
-                if (mode != AuthMode.RESET) {
+                if (mode != AuthMode.RESET && googleAvailable) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                         HorizontalDivider(Modifier.weight(1f))
                         Text("  o  ", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

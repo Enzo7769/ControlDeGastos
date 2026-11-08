@@ -27,6 +27,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import androidx.credentials.ClearCredentialStateRequest
+import androidx.credentials.CredentialManager
 
 data class UpdateInfo(
     val apkUrl: String,
@@ -140,6 +143,10 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
     fun signOut() {
         updateSettings { it.copy(biometricLock = false) }
         auth.signOut()
+        // Olvida la cuenta de Google elegida, para poder entrar con otra la próxima vez.
+        viewModelScope.launch {
+            runCatching { CredentialManager.create(getApplication()).clearCredentialState(ClearCredentialStateRequest()) }
+        }
     }
 
     // ---------- Exportar ----------
