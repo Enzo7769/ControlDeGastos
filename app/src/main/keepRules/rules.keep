@@ -10,3 +10,18 @@
 #-keepclassmembers class fqcn.of.javascript.interface.for.webview {
 #   public *;
 #}
+# Credential Manager (inicio de sesión con Google): recomendado por la documentación oficial.
+-if class androidx.credentials.CredentialManager
+-keep class androidx.credentials.playservices.** {
+  *;
+}
+
+# WorkManager (recordatorios): Room y WorkManager crean estas clases por reflexión con su
+# constructor vacío. Sus reglas de librería conservan la clase pero, con R8 en modo completo,
+# no el constructor, y la app se cerraba al abrirse.
+-keep class * extends androidx.room.RoomDatabase {
+  <init>();
+}
+-keep class * extends androidx.work.InputMerger {
+  <init>();
+}

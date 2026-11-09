@@ -1,0 +1,21 @@
+rules_version = '2';
+
+// Cada usuario solo puede leer y escribir sus propios datos.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Información de versiones (si se usa). Solo lectura para usuarios con sesión.
+    match /app_config/{doc} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Todo lo demás está cerrado.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
